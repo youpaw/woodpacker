@@ -10,7 +10,7 @@ set(LIBFT_DIR "libft")
 include_directories(${LIBFT_DIR})
 add_subdirectory(${LIBFT_DIR})
 
-include_directories(include)
-add_executable(${PROJECT_NAME} woodpacker.c)
+include_directories(src src/elf64)
+add_executable(${PROJECT_NAME} src/woodpacker.c src/validate_exec.c src/load_exec.c src/new_exec_data.c src/del_exec_data.c src/elf64/validate_exec_elf64.c)
 
 target_link_libraries(${PROJECT_NAME} ft)
