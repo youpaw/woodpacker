@@ -3,7 +3,7 @@
 //
 
 #include "woodpacker.h"
-#include "elf64_packer.h"
+#include "pack_elf64.h"
 #include <stdio.h>
 #include <errno.h>
 

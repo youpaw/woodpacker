@@ -3,7 +3,6 @@
 //
 #include "woodpacker.h"
 #include <stdio.h>
-#include <string.h>
 #include <errno.h>
 #include <stdlib.h>
 
@@ -22,6 +21,8 @@ int main(int argc, const char **argv)
 		usage();
 	exec_data = load_exec(argv[1]);
 	if (!exec_data)
+		exit(errno);
+	if (pack_exec(exec_data))
 		exit(errno);
 	printf("Provided file is valid and supported!");
 	del_exec_data(&exec_data);
