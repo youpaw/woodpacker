@@ -25,14 +25,14 @@ static off_t	map_woody_tmpl(void **map)
 	return (size);
 }
 
-int	pack_elf64(const t_pack_data *data)
+int	pack_elf64(const t_map_data *exec)
 {
-	void	*tmpl_map;
-	off_t	tmpl_size;
+	t_map_data tmpl;
 
-	tmpl_size = map_woody_tmpl(&tmpl_map);
-	if (tmpl_size == -1)
+	tmpl.size = map_woody_tmpl(&tmpl.map);
+	if (errno)
 		return (-1);
-	munmap(tmpl_map, tmpl_size);
+
+	munmap(tmpl.map, tmpl.size);
 	return (0);
 }

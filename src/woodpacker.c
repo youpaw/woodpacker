@@ -22,6 +22,8 @@ int main(int argc, const char **argv)
 	exec_data = load_exec(argv[1]);
 	if (!exec_data)
 		exit(errno);
+	if (crypt_exec(exec_data->data, exec_data->size))
+		exit(errno);
 	if (pack_exec(exec_data))
 		exit(errno);
 	printf("Provided file is valid and supported!");

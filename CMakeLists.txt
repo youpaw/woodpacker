@@ -10,7 +10,16 @@ set(LIBFT_DIR "libft")
 include_directories(${LIBFT_DIR})
 add_subdirectory(${LIBFT_DIR})
 
-include_directories(src src/pack src/pack/pack_elf64)
-add_executable(${PROJECT_NAME} src/woodpacker.c src/validate_exec.c src/load_exec.c src/new_exec_data.c src/del_exec_data.c src/pack/pack_elf64/validate_exec_elf64.c src/pack/pack_elf64/pack_elf64.c src/pack/pack_share.h src/get_pack_data.c src/pack_exec.c)
+include_directories(src src/load src/crypt src/pack src/pack/elf64)
+add_executable(${PROJECT_NAME} src/woodpacker.c
+        src/load/load_exec.c
+        src/load/new_exec_data.c
+        src/load/del_exec_data.c
+        src/load/validate_exec_elf64.c
+        src/load/validate_exec.c
+        src/crypt/crypt_exec.c
+        src/pack/pack_exec.c
+        src/pack/elf64/pack_elf64.c
+        src/pack/get_map_data.c)
 
 target_link_libraries(${PROJECT_NAME} ft)
