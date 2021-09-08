@@ -6,7 +6,7 @@
 
 int	pack_exec(const t_exec_data *exec_data)
 {
-	static int (*pack[N_SUPPORTED_FORMATS])(const t_map_data *) = {
+	static int (*pack[N_SUPPORTED_FORMATS])(t_map_data *) = {
 			&pack_elf64 };
 	t_map_data exec;
 

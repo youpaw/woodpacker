@@ -20,6 +20,6 @@ add_executable(${PROJECT_NAME} src/woodpacker.c
         src/crypt/crypt_exec.c
         src/pack/pack_exec.c
         src/pack/elf64/pack_elf64.c
-        src/pack/get_map_data.c)
+        src/pack/get_map_data.c src/pack/elf64/adjust_tmpl_elf64.c src/pack/elf64/write_woody_elf64.c)
 
 target_link_libraries(${PROJECT_NAME} ft)
