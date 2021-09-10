@@ -1,12 +1,10 @@
 //
 // Created by youpaw on 21/08/2021.
 //
-#include "woodpacker.h"
-#include "ft_mem.h"
+#include "load_exec.h"
 #include <sys/mman.h>
 #include <fcntl.h>
 #include <stdio.h>
-#include <stdlib.h>
 #include <errno.h>
 
 static off_t	map_exec(const char *path, void **exec_map)
