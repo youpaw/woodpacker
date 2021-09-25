@@ -34,7 +34,7 @@ int	pack_elf64(const t_map_data *exec)
 
 	if (map_woody_tmpl(&tmpl) == -1)
 		return (-1);
-	ret = adjust_tmpl_elf64(&tmpl, exec, &inject);
+	ret = init_tmpl_elf64(&tmpl, exec, &inject);
 	if (!ret)
 		ret = write_woody_elf64(&tmpl, exec, &inject);
 	munmap(tmpl.map, tmpl.size);
