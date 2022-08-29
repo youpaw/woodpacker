@@ -2,41 +2,38 @@
 // Created by youpaw on 22/08/2021.
 //
 #include "pack_elf64.h"
-#include <fcntl.h>
-#include <unistd.h>
-#include <sys/mman.h>
-#include <stdio.h>
-#include <errno.h>
+#include "memory/ft_mem.h"
 
-static off_t	map_woody_tmpl(t_map_data *tmpl)
+
+static t_data_wrap *allocate_woody(const t_exec_map *exec,
+								   const t_cave_info *cave)
 {
-	int		fd;
-	off_t	size;
+	t_data_wrap *woody;
 
-	fd = open(WOODY_TMPL_ELF64, O_RDONLY);
-	size = lseek(fd, 0, SEEK_END);
-	lseek(fd, 0, SEEK_SET);
-	tmpl->map = mmap(NULL, size, PROT_READ | PROT_WRITE, MAP_PRIVATE, fd, 0);
-	tmpl->size = size;
-	if (errno)
+	woody = ft_xmalloc(sizeof(t_data_wrap));
+	woody->size = exec->size + cave->extend;
+	woody->data = ft_xmalloc(woody->size);
+	if (cave->extend)
 	{
-		perror("Cannot open woody binary template");
-		return (-1);
+		ft_memcpy(woody->data, exec->addr, cave->off);
+		ft_bzero(woody->data + cave->off, cave->extend);
+		ft_memcpy(woody->data + cave->off + cave->extend,
+				  exec->addr + cave->off,
+				  exec->size - cave->off);
 	}
-	return (0);
+	else
+		ft_memcpy(woody->data, exec->addr, exec->size);
+	return (woody);
 }
 
-int	pack_elf64(const t_map_data *exec)
-{
-	int			ret;
-	t_map_data	tmpl;
-	t_inject_info inject;
 
-	if (map_woody_tmpl(&tmpl) == -1)
-		return (-1);
-	ret = init_tmpl_elf64(&tmpl, exec, &inject);
-	if (!ret)
-		ret = write_woody_elf64(&tmpl, exec, &inject);
-	munmap(tmpl.map, tmpl.size);
-	return (ret);
+t_data_wrap	*pack_elf64(const t_exec_map *exec)
+{
+	t_data_wrap *woody;
+	t_cave_info *cave;
+
+	cave = find_cave_elf64(exec->addr);
+	woody = allocate_woody(exec, cave);
+//	assemble_woody_elf64(exec, cave);
+	return (woody);
 }

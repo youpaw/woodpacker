@@ -3,13 +3,21 @@
 //
 #include "load_exec.h"
 #include "pack_elf64.h"
+#include <stdio.h>
 
-int	pack_exec(const t_exec_data *exec_data)
+int	pack_exec(const t_exec_map *exec_map)
 {
-	static int (*pack[N_SUPPORTED_FORMATS])(t_map_data *) = {
+	static t_data_wrap *(*pack[N_SUPPORTED_FORMATS])(const t_exec_map *) = {
 			&pack_elf64 };
-	t_map_data exec;
+	t_data_wrap *woody;
 
-	get_map_data(&exec, exec_data->data, exec_data->size);
-	return (pack[exec_data->fmt](&exec));
+	woody = pack[exec_map->fmt](exec_map);
+	if (!woody)
+	{
+		perror("Failed to pack woody");
+		return (-1);
+	}
+	write_woody(woody);
+	del_data_wrap(&woody);
+	return (0);
 }
