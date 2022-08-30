@@ -12,6 +12,7 @@ typedef struct	s_cave_info {
 	size_t off;
 	size_t size;
 	size_t extend;
+	size_t phoff;
 }				t_cave_info;
 
 t_cave_info	*find_cave_elf64(const void *bin);
