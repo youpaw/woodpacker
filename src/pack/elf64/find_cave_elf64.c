@@ -8,36 +8,42 @@
 #include <stdio.h>
 #include <elf.h>
 
-static Elf64_Phdr *find_text_segment( const Elf64_Ehdr *ehdr)
+static Elf64_Phdr *find_text_segment(int *txt_idx, const Elf64_Ehdr *ehdr)
 {
-	Elf64_Phdr *seg;
-	int idx;
+	Elf64_Phdr	*seg;
+	int			idx;
 
 	idx = 0;
 	while (idx != ehdr->e_phnum)
 	{
 		seg = (void *) ehdr + ehdr->e_phoff + ehdr->e_phentsize * idx;
 		if (seg->p_type == PT_LOAD && (seg->p_flags & PF_X))
+		{
+			*txt_idx = idx;
 			return (seg);
+		}
 		idx++;
 	}
 	errno = EINVAL;
 	perror("Cannot find text segment header in provided elf64 executable");
+	*txt_idx = -1;
 	return (NULL);
 }
 
 t_cave_info	*find_cave_elf64(const void *bin)
 {
-	t_cave_info			*cave;
-	Elf64_Phdr			*txt_seg;
+	t_cave_info	*cave;
+	Elf64_Phdr	*txt_seg;
+	int			txt_seg_idx;
 
-	txt_seg = find_text_segment(bin);
+	txt_seg = find_text_segment(&txt_seg_idx, bin);
 	if (!txt_seg)
 		return (NULL);
 	cave = ft_xmalloc(sizeof(t_cave_info));
 	cave->size = txt_seg->p_align - txt_seg->p_filesz % txt_seg->p_align;
 	cave->off = txt_seg->p_offset + txt_seg->p_filesz;
-	cave->phoff = (void *) txt_seg - bin;
+	cave->ph_off = (void *) txt_seg - bin;
+	cave->ph_idx = txt_seg_idx;
 	cave->extend = 0;
 	return (cave);
 }
