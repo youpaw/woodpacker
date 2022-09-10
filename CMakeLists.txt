@@ -21,6 +21,6 @@ add_executable(${PROJECT_NAME}
         src/pack/write_woody.c
         src/pack/elf64/pack_elf64.c
         src/pack/elf64/assemble_woody_elf64.c
-        src/new_data_wrap.c src/del_data_wrap.c src/load/mmap_exec.c src/load/munmap_exec.c src/pack/elf64/find_cave_elf64.c)
+        src/new_data_wrap.c src/del_data_wrap.c src/load/mmap_exec.c src/load/munmap_exec.c src/pack/elf64/find_cave_elf64.c align.c)
 
 target_link_libraries(${PROJECT_NAME} ft)

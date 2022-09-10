@@ -40,10 +40,10 @@ t_cave_info	*find_cave_elf64(const void *bin)
 	if (!txt_seg)
 		return (NULL);
 	cave = ft_xmalloc(sizeof(t_cave_info));
-	cave->size = txt_seg->p_align - txt_seg->p_filesz % txt_seg->p_align;
 	cave->off = txt_seg->p_offset + txt_seg->p_filesz;
 	cave->ph_off = (void *) txt_seg - bin;
 	cave->ph_idx = txt_seg_idx;
-	cave->extend = 0;
+	cave->size = txt_seg->p_align - txt_seg->p_filesz % txt_seg->p_align;
+	cave->extend = align(PAYLOAD_SIZE_ELF64, cave->size, txt_seg->p_align);
 	return (cave);
 }
