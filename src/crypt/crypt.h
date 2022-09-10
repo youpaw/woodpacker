@@ -4,20 +4,13 @@
 
 #ifndef CRYPT_H
 #define CRYPT_H
-#include <unistd.h>
+#define ENCRYPT_KEY_SIZE 16
+#define ENCRYPT_ALIGN ENCRYPT_KEY_SIZE
 
-typedef enum	e_aes_key
-{
-	k_128 = 128,
-	k_192 = 192,
-	k_256 = 256
-}				t_aes_key;
+#include <stddef.h>
 
-typedef struct	s_aes_data {
-	void *data;
-	size_t size;
-}				t_aes_data;
+void	encrypt(void *key, void *data, size_t size);
+void	*generate_key(size_t key_size, const void *seed);
 
-t_aes_data *encrypt_aes(const void *data, size_t size, const char *key, t_aes_key key_size);
 
 #endif //CRYPT_H
