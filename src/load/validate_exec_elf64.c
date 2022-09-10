@@ -18,7 +18,7 @@ int validate_exec_elf64(const void *exec_map, size_t size)
 	ehdr = (Elf64_Ehdr *) exec_map;
 	if (ehdr->e_ident[EI_CLASS] != ELFCLASS64)
 		return (1);
-	if (ehdr->e_type != ET_EXEC)
+	if (!(ehdr->e_type == ET_EXEC || ehdr->e_type == ET_DYN))
 	{
 		errno = EINVAL;
 		perror("Unsupported elf type, executables only");

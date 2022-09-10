@@ -1,7 +1,9 @@
 //
 // Created by Darth Butterwell on 8/7/21.
 //
-#include "woodpacker.h"
+#include "load_exec.h"
+#include "crypt.h"
+#include "pack_exec.h"
 #include <stdio.h>
 #include <errno.h>
 #include <stdlib.h>
@@ -15,18 +17,16 @@ static void usage(void)
 
 int main(int argc, const char **argv)
 {
-	t_exec_data *exec_data;
+	t_exec_map *exec;
 
 	if (argc != 2)
 		usage();
-	exec_data = load_exec(argv[1]);
-	if (!exec_data)
+	exec = load_exec(argv[1]);
+	if (!exec)
 		exit(errno);
-	if (crypt_exec(exec_data->data, exec_data->size))
-		exit(errno);
-	if (pack_exec(exec_data))
+	if (pack_exec(exec))
 		exit(errno);
 	printf("Provided file is valid and supported!");
-	del_exec_data(&exec_data);
+	munmap_exec(&exec);
     return (0);
 }
