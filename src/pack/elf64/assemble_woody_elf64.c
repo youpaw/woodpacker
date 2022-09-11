@@ -15,11 +15,11 @@ static void inject_payload(void *bin, t_cave_info *cave)
 
 	ehdr = bin;
 	seg = bin + cave->ph_off;
-	inject = bin + cave->off;
-	jmp = ehdr->e_entry - (cave->off + JMP_ADDR_OFF_ELF64) - 4;
+	inject = bin + cave->off + cave->seg_pad;
+	jmp = ehdr->e_entry - (cave->off + cave->seg_pad + JMP_ADDR_OFF_ELF64) - 4;
 	ft_memcpy(inject, PAYLOAD_ELF64, PAYLOAD_SIZE_ELF64);
 	ft_memcpy(inject + JMP_ADDR_OFF_ELF64, &jmp, sizeof(ehdr->e_entry));
-	ehdr->e_entry = seg->p_vaddr + seg->p_filesz;
+	ehdr->e_entry = seg->p_vaddr + seg->p_filesz + cave->seg_pad;
 	ehdr->e_shoff += cave->extend;
 }
 
@@ -31,8 +31,8 @@ static void patch_segments(void *bin, t_cave_info *cave)
 	size_t		cnt;
 
 	load = bin + cave->ph_off;
-	load->p_filesz += PAYLOAD_SIZE_ELF64;
-	load->p_memsz += PAYLOAD_SIZE_ELF64;
+	load->p_filesz += PAYLOAD_SIZE_ELF64 + cave->seg_pad;
+	load->p_memsz += PAYLOAD_SIZE_ELF64 + cave->seg_pad;
 	if (cave->extend)
 	{
 		head = bin;
@@ -40,7 +40,8 @@ static void patch_segments(void *bin, t_cave_info *cave)
 		while (cnt != head->e_phnum)
 		{
 			seg = bin + head->e_phoff + head->e_phentsize * cnt;
-			seg->p_offset += cave->extend;
+			if (seg->p_offset > cave->off)
+				seg->p_offset += cave->extend;
 			cnt++;
 		}
 	}
@@ -61,7 +62,7 @@ static void patch_sections(void *bin, t_cave_info *cave)
 		{
 			if (sect->sh_offset + sect->sh_size == cave->off)
 			{
-				sect->sh_size += PAYLOAD_SIZE_ELF64;
+				sect->sh_size += PAYLOAD_SIZE_ELF64 + cave->seg_pad;
 				if (!cave->extend)
 					break;
 			}
@@ -72,10 +73,9 @@ static void patch_sections(void *bin, t_cave_info *cave)
 	}
 }
 
-t_data_wrap *assemble_woody_elf64(t_data_wrap *woody, t_cave_info *cave_info)
+void assemble_woody_elf64(t_data_wrap *woody, t_cave_info *cave_info)
 {
 	inject_payload(woody->data, cave_info);
 	patch_segments(woody->data, cave_info);
 	patch_sections(woody->data, cave_info);
-	return (0);
 }

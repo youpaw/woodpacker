@@ -22,7 +22,8 @@
 
 #define JMP_ADDR_OFF_ELF64 50
 
-t_data_wrap	*pack_elf64(const t_exec_map *exec);
-t_data_wrap *assemble_woody_elf64(t_data_wrap *woody, t_cave_info *cave_info);
+t_pack_data	*pack_elf64(const t_exec_map *exec);
+t_cave_info	*find_cave_elf64(const void *bin);
+void		assemble_woody_elf64(t_data_wrap *woody, t_cave_info *cave_info);
 
 #endif //PACK_ELF64_H

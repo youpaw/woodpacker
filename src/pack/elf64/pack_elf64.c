@@ -26,15 +26,16 @@ static t_data_wrap *allocate_woody(const t_exec_map *exec,
 	return (woody);
 }
 
-
-t_data_wrap	*pack_elf64(const t_exec_map *exec)
+t_pack_data	*pack_elf64(const t_exec_map *exec)
 {
-	t_data_wrap *woody;
+	t_pack_data *pack;
 	t_cave_info *cave;
 
 	cave = find_cave_elf64(exec->addr);
-	woody = allocate_woody(exec, cave);
-	assemble_woody_elf64(woody, cave);
+	if (!cave)
+		return (NULL);
+	pack = new_pack_data(allocate_woody(exec, cave), NULL);
+	assemble_woody_elf64(pack->woody, cave);
 	free(cave);
-	return (woody);
+	return (pack);
 }

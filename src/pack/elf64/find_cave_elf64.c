@@ -3,6 +3,7 @@
 //
 
 #include "pack_elf64.h"
+#include "crypt.h"
 #include "memory/ft_mem.h"
 #include <errno.h>
 #include <stdio.h>
@@ -25,7 +26,8 @@ static Elf64_Phdr *find_text_segment(int *txt_idx, const Elf64_Ehdr *ehdr)
 		idx++;
 	}
 	errno = EINVAL;
-	perror("Cannot find text segment header in provided elf64 executable");
+	perror("Cannot find executable segment header "
+		   "in provided elf64 executable");
 	*txt_idx = -1;
 	return (NULL);
 }
@@ -44,6 +46,8 @@ t_cave_info	*find_cave_elf64(const void *bin)
 	cave->ph_off = (void *) txt_seg - bin;
 	cave->ph_idx = txt_seg_idx;
 	cave->size = txt_seg->p_align - txt_seg->p_filesz % txt_seg->p_align;
-	cave->extend = align(PAYLOAD_SIZE_ELF64, cave->size, txt_seg->p_align);
+	cave->seg_pad = txt_seg->p_filesz % ENCRYPT_ALIGN;
+	cave->extend = align(cave->seg_pad + PAYLOAD_SIZE_ELF64,
+						 cave->size, txt_seg->p_align);
 	return (cave);
 }

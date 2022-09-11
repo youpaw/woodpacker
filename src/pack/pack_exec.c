@@ -7,17 +7,17 @@
 
 int	pack_exec(const t_exec_map *exec_map)
 {
-	static t_data_wrap *(*pack[N_SUPPORTED_FORMATS])(const t_exec_map *) = {
+	static t_pack_data *(*pack[N_SUPPORTED_FORMATS])(const t_exec_map *) = {
 			&pack_elf64 };
-	t_data_wrap *woody;
+	t_pack_data *pack_data;
 
-	woody = pack[exec_map->fmt](exec_map);
-	if (!woody)
+	pack_data = pack[exec_map->fmt](exec_map);
+	if (!pack_data)
 	{
 		perror("Failed to pack woody");
 		return (-1);
 	}
-	write_woody(woody);
-	del_data_wrap(&woody);
+	write_woody(pack_data->woody);
+	del_pack_data(&pack_data);
 	return (0);
 }
