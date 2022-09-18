@@ -1,22 +1,23 @@
 #include "memory/ft_mem.h"
 #include "crypt.h"
-#include <stdlib.h>
+#include <fcntl.h>
+#include "hash/ft_hash.h"
+#include "string/ft_str.h"
 
 t_data_wrap	*generate_key(const char *seed)
 {
-    t_data_wrap *key;
-    size_t n_rounds;
-    size_t round;
-    int key_part;
+    t_data_wrap	*key;
+	int			fd;
 
     key = new_data_wrap(ft_xmalloc(ENCRYPT_KEY_SIZE), ENCRYPT_KEY_SIZE);
-    n_rounds = ENCRYPT_KEY_SIZE / sizeof(int);
-    round = 0;
-    while(round != n_rounds)
-    {
-        key_part = rand();
-        ft_memcpy((char *)key->data + (sizeof(int) * round), &key_part, sizeof(int));
-        round++;
-    }
+	if (seed) {
+		hash_md2(key->data, seed, ft_strlen(seed));
+	}
+	else {
+		fd = open("/dev/urandom", O_RDONLY);
+		read(fd, key->data, key->size);
+		close(fd);
+		hash_md2(key->data, key->data, ENCRYPT_KEY_SIZE);
+	}
     return (key);
 }
