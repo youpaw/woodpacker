@@ -15,13 +15,11 @@ add_subdirectory(${LIBFT_DIR})
 
 include_directories(src src/load src/crypt src/pack src/pack/elf64)
 add_executable(${PROJECT_NAME}
-        src/align.c
         src/print_hex.c
         src/woodpacker.c
         src/new_data_wrap.c
         src/del_data_wrap.c
         src/crypt/encrypt.asm
-        src/crypt/decrypt.asm
         src/crypt/generate_key.c
         src/load/load_exec.c
         src/load/mmap_exec.c
@@ -33,6 +31,6 @@ add_executable(${PROJECT_NAME}
         src/pack/elf64/pack_elf64.c
         src/pack/elf64/find_cave_elf64.c
         src/pack/write_woody.c
-        src/pack/del_pack_data.c src/pack/new_pack_data.c)
+        )
 
 target_link_libraries(${PROJECT_NAME} ft)

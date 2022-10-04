@@ -26,15 +26,6 @@ typedef struct	s_cave_info {
 	size_t ph_idx;
 }				t_cave_info;
 
-
-typedef struct	s_pack_data{
-	struct s_data_wrap	*woody;
-	struct s_data_wrap	*key;
-}				t_pack_data;
-
-t_pack_data	*new_pack_data(t_data_wrap *woody, t_data_wrap *key);
-void		del_pack_data(t_pack_data **pack);
-
-int			pack_exec(const t_exec_map *exec_map);
+int			pack_exec(const t_exec_map *exec_map, const t_data_wrap *key);
 int			write_woody(const t_data_wrap *woody);
 #endif //PACK_EXEC_H

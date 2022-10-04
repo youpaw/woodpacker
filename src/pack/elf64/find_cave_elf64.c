@@ -32,6 +32,11 @@ static Elf64_Phdr *find_text_segment(int *txt_idx, const Elf64_Ehdr *ehdr)
 	return (NULL);
 }
 
+static size_t align_segment(size_t insert, size_t current, size_t align)
+{
+	return (((insert / align) + (insert % align > current)) * align);
+}
+
 t_cave_info	*find_cave_elf64(const void *bin)
 {
 	t_cave_info	*cave;
@@ -46,8 +51,9 @@ t_cave_info	*find_cave_elf64(const void *bin)
 	cave->ph_off = (void *) txt_seg - bin;
 	cave->ph_idx = txt_seg_idx;
 	cave->size = txt_seg->p_align - txt_seg->p_filesz % txt_seg->p_align;
-	cave->seg_pad = txt_seg->p_filesz % ENCRYPT_ALIGN;
-	cave->extend = align(cave->seg_pad + PAYLOAD_SIZE_ELF64,
+	cave->seg_pad = txt_seg->p_filesz % ENCRYPT_ALIGN ?
+			ENCRYPT_ALIGN - (txt_seg->p_filesz % ENCRYPT_ALIGN) : 0;
+	cave->extend = align_segment(cave->seg_pad + PAYLOAD_SIZE_ELF64,
 						 cave->size, txt_seg->p_align);
 	return (cave);
 }

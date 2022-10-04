@@ -1,6 +1,8 @@
 BITS 64
 
 global encrypt
+; encrypt(char *key, char *value, size_t len)
+;		  rdi,       rsi		  rdx
 
 
 %macro  genkey 1-2 ; if count of params==1, second param = rax
@@ -9,10 +11,6 @@ global encrypt
 	movdqu %2, xmm1
 %endmacro
 
-global encrypt
-
-; encrypt(char *key, char *value, size_t len)
-;				rdi,	rsi			rdx
 
 start:
 	jmp encrypt
@@ -30,7 +28,7 @@ key_expansion_128: ; expand key from xmm2
 
 encrypt:
 	push rbx
-	movdqu xmm1, [rdi] ; move key in xmm0
+	movdqu xmm1, [rdi] ; move key in xmm1
 	movdqu xmm0, xmm1 ; move key in xmm0
 	genkey 0x1, xmm4
 	genkey 0x2, xmm5

@@ -7,10 +7,10 @@
 #define ENCRYPT_KEY_SIZE 16
 #define ENCRYPT_ALIGN ENCRYPT_KEY_SIZE
 
+#include "woodpacker.h"
 #include <stddef.h>
 
-void	encrypt(void *key, void *data, size_t size);
-void	*generate_key(size_t key_size, const void *seed);
-
+void		encrypt(void *key, void *data, size_t size);
+t_data_wrap	*generate_key(const char *seed);
 
 #endif //CRYPT_H
