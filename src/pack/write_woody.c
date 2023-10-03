@@ -18,5 +18,7 @@ int		write_woody(const t_data_wrap *woody)
 		return (-1);
 	}
 	write(fd, woody->data, woody->size);
+	close(fd);
+	puts("Woody executable successfully packed!\n");
 	return (0);
 }

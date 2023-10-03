@@ -17,16 +17,18 @@ static void usage(void)
 
 int main(int argc, const char **argv)
 {
-	t_exec_map *exec;
+	t_exec_map	*exec;
+	t_data_wrap	*key;
 
 	if (argc != 2)
 		usage();
 	exec = load_exec(argv[1]);
 	if (!exec)
 		exit(errno);
-	if (pack_exec(exec))
+	key = generate_key(NULL);
+	if (pack_exec(exec, key))
 		exit(errno);
-	printf("Provided file is valid and supported!");
 	munmap_exec(&exec);
+	del_data_wrap(&key);
     return (0);
 }

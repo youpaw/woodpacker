@@ -22,42 +22,26 @@ key_expansion_128: ; expand key from xmm2
 	ret
 
 decrypt:
-	mov r13, 0xdeadbeef ; HARD CODED new entry point
-	mov r12, 0xdeadbeef ; HARD CODED text length
-	mov r11, 0xdeadbeef ; HARD CODED text offset
+	mov r10, 0xdeadbeefdeadbeef ; HARD CODED encrypted segment length (encryption aligned)
 	mov r9, 0xdeadbeefdeadbeef ; HARD CODED first part of the key
-	mov r8, 0xdeadbeefdeadbeef ; HARD CODED second part of th ekey
+	mov r8, 0xdeadbeefdeadbeef ; HARD CODED second part of the key
 	movq xmm1, r9
 	movq xmm2, r8
 	movlhps xmm1, xmm2 ; 0x00000000ffffffff to 0xffffffff00000000
-	; get virt address
+	; get virt address of the encrypted segment
 	lea rdi, [ rel start ]
-	neg r13
-	add rdi, r13 ; begining of the elf
-	add rdi, r11 ; begining of the .text WORKING
-	; align rdi for mprotect
-	mov r10, rdi;
-	and rdi, -0x1000;
-	; get the alignement
-	neg rdi
-	add r10, rdi
-	neg rdi
-	add r12, r10 ; text length + alignement
+	mov r11, r10
+	neg r11
+	add rdi, r11 ; relative offset to the beginning of encrypted segment
 	; mprotect
 	mov rax, 0xa ; syscall mprotect
-	mov rsi, r12 ; length page_size maybe more next time ? HARD CODED
+	mov rsi, r10 ; size
 	mov rdx, 0x07 ; protection
 	syscall
 
-
-	; initialize for the loop
-	add rdi, r10 ; come bactk to the start of .text
-	neg r10
-	add r12, r10 ; come back to the original r12, code length
-
 	; aes thing
-	mov rsi, rdi; section offset
-	mov rdx, r12; section len
+	mov rsi, rdi; encrypted segment offset
+	mov rdx, r10; encrypted segment length
 	movdqu xmm0, xmm1 ; move key in xmm0
 	genkey 0x1, xmm4
 	genkey 0x2, xmm5
@@ -101,10 +85,11 @@ perform:
 	add rdi, 0x10
 	jmp begin_loop
 
-end: ; reset our variables
+end: ; reset registers
 	xor rax, rax
 	xor rdi, rdi
 	xor rsi, rsi
 	xor rdx, rdx
-	xor r14, r14
 	xor rcx, rcx
+	xor r8, r8
+	xor r9, r9
