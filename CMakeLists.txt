@@ -13,9 +13,8 @@ set(LIBFT_DIR "libft")
 include_directories(${LIBFT_DIR})
 add_subdirectory(${LIBFT_DIR})
 
-include_directories(src src/load src/crypt src/pack src/pack/elf64)
+include_directories(src src/load src/crypt src/pack src/pack/elf64 src/hash)
 add_executable(${PROJECT_NAME}
-        src/print_hex.c
         src/woodpacker.c
         src/new_data_wrap.c
         src/del_data_wrap.c
