@@ -5,6 +5,7 @@
 #include "pack_elf64.h"
 #include "memory/ft_mem.h"
 #include <elf.h>
+#include <unistd.h>
 
 static void inject_payload(void *bin, t_cave_info *cave, void *key)
 {
@@ -22,7 +23,9 @@ static void inject_payload(void *bin, t_cave_info *cave, void *key)
 	ft_memcpy(inject + KEY_PART1_OFF_ELF64, key, sizeof(uint64_t));
 	ft_memcpy(inject + KEY_PART2_OFF_ELF64, key + sizeof(uint64_t), sizeof(uint64_t));
 	tmp = ehdr->e_entry - (cave->off + cave->seg_pad + JMP_ADDR_OFF_ELF64) - 4;
-	ft_memcpy(inject + JMP_ADDR_OFF_ELF64, &tmp, sizeof(uint64_t));
+	ft_memcpy(inject + JMP_ADDR_OFF_ELF64, &tmp, sizeof(uint32_t));
+	tmp = ~sysconf(_SC_PAGE_SIZE) + 1;
+	ft_memcpy(inject + ALIGN_OFF_ELF64, &tmp, sizeof(uint32_t));
 	ehdr->e_entry = seg->p_vaddr + seg->p_filesz + cave->seg_pad;
 	ehdr->e_shoff += cave->extend;
 }
