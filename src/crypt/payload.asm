@@ -8,7 +8,36 @@ global decrypt
 %endmacro
 
 start:
-	jmp decrypt
+    ; preserve
+	push rax
+	push rdi
+	push rsi
+	push rdx
+	push rcx
+	call print_woody
+    call decrypt
+    pop rcx
+    pop rdx
+    pop rsi
+    pop rdi
+    pop rax
+	jmp 0xdeadbeef
+
+print_woody:
+    push rbp
+    mov rbp, rsp
+    sub rsp,0x10
+    mov dword [rsp-4], `.\n\0\0`
+    mov dword [rsp-8], `y...`
+    mov dword [rsp-12], 'Wood'
+    mov dword [rsp-16],'....'
+    mov rax,0x1
+    mov rdi,0x1
+    lea rsi,[rsp-16]
+    mov rdx,0xe
+    syscall
+    leave
+    ret
 
 key_expansion_128: ; expand key from xmm2
 	pshufd xmm2, xmm2, 0xff ; "shuffle packed double word"
@@ -33,15 +62,24 @@ decrypt:
 	mov r11, r10
 	neg r11
 	add rdi, r11 ; relative offset to the beginning of encrypted segment
+	mov r9, rdi ; backup encrypted segment offset
+    ; align rdi for mprotect
+    mov r11, rdi
+    and rdi, -0x10000000;
+    ; get the alignement
+    neg rdi
+    add r11, rdi
+    neg rdi
+    add r11, r10 ; text length + alignement
 	; mprotect
 	mov rax, 0xa ; syscall mprotect
-	mov rsi, r10 ; size
+	mov rsi, r11 ; size
 	mov rdx, 0x07 ; protection
 	syscall
 
 	; aes thing
-	mov rsi, rdi; encrypted segment offset
-	mov rdx, r10; encrypted segment length
+	mov rsi, r9 ; encrypted segment offset
+	mov rdx, r10 ; encrypted segment length
 	movdqu xmm0, xmm1 ; move key in xmm0
 	genkey 0x1, xmm4
 	genkey 0x2, xmm5
@@ -85,11 +123,6 @@ perform:
 	add rdi, 0x10
 	jmp begin_loop
 
-end: ; reset registers
-	xor rax, rax
-	xor rdi, rdi
-	xor rsi, rsi
-	xor rdx, rdx
-	xor rcx, rcx
-	xor r8, r8
-	xor r9, r9
+end:
+    xor r12, r12
+	ret
