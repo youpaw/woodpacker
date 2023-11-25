@@ -11,7 +11,7 @@
 
 static void usage(void)
 {
-	puts("Usage: woody_woodpacker executable [key]");
+	puts("Usage: woody_woodpacker executable_path [key]");
 	puts("\tEncrypt and pack executable\n");
 	exit(0);
 }

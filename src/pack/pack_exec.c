@@ -3,12 +3,13 @@
 //
 #include "load_exec.h"
 #include "pack_elf64.h"
+#include "pack_elf32.h"
 #include <stdio.h>
 
 int	pack_exec(const t_exec_map *exec_map, const t_data_wrap *key)
 {
 	static t_data_wrap *(*pack[N_SUPPORTED_FORMATS])
-	(const t_exec_map *, const t_data_wrap *) = { &pack_elf64 };
+	(const t_exec_map *, const t_data_wrap *) = { &pack_elf64, &pack_elf32 };
 	t_data_wrap *woody;
 
 	woody = pack[exec_map->fmt](exec_map, key);
