@@ -26,7 +26,7 @@ static Elf32_Phdr *find_text_segment(int *txt_idx, const Elf32_Ehdr *ehdr)
 	}
 	errno = EINVAL;
 	perror("Cannot find executable segment header "
-		   "in the provided executable");
+		   "in the provided elf32 executable");
 	*txt_idx = -1;
 	return (NULL);
 }
