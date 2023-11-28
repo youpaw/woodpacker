@@ -9,7 +9,7 @@
 t_exec_fmt validate_exec(const void *exec_map, size_t size)
 {
 	static int (*handlers[N_SUPPORTED_FORMATS])(const void *, size_t) = {
-			&validate_exec_elf64
+			&validate_exec_elf64, &validate_exec_elf32
 	};
 	t_exec_fmt	fmt;
 	int			ret;

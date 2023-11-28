@@ -2,7 +2,7 @@ BITS 64
 global decrypt
 
 %macro  genkey 1-2
-	aeskeygenassist xmm2, xmm1, %1 ; round 2
+	aeskeygenassist xmm2, xmm1, %1 ; round n
 	call key_expansion_128
 	movdqu %2, xmm1
 %endmacro
@@ -27,13 +27,13 @@ print_woody:
     push rbp
     mov rbp, rsp
     sub rsp,0x10
-    mov dword [rsp-4], `.\n\0\0`
-    mov dword [rsp-8], `y...`
-    mov dword [rsp-12], 'Wood'
-    mov dword [rsp-16],'....'
+    mov dword [rbp-4], `.\n\0\0`
+    mov dword [rbp-8], `y...`
+    mov dword [rbp-12], 'Wood'
+    mov dword [rbp-16],'....'
     mov rax,0x1
     mov rdi,0x1
-    lea rsi,[rsp-16]
+    lea rsi,[rbp-16]
     mov rdx,0xe
     syscall
     leave
@@ -51,14 +51,14 @@ key_expansion_128: ; expand key from xmm2
 	ret
 
 decrypt:
-	mov r10, 0xdeadbeefdeadbeef ; HARD CODED encrypted segment length (encryption aligned)
+	mov r10, 0xdeadbeefdeadbeef ; HARD CODED encrypted segment size (encryption aligned)
 	mov r9, 0xdeadbeefdeadbeef ; HARD CODED first part of the key
 	mov r8, 0xdeadbeefdeadbeef ; HARD CODED second part of the key
 	movq xmm1, r9
 	movq xmm2, r8
 	movlhps xmm1, xmm2 ; 0x00000000ffffffff to 0xffffffff00000000
 	; get virt address of the encrypted segment
-	lea rdi, [ rel start ]
+	lea rdi, [rel start]
 	mov r11, r10
 	neg r11
 	add rdi, r11 ; relative offset to the beginning of encrypted segment
@@ -70,7 +70,7 @@ decrypt:
     neg rdi
     add r11, rdi
     neg rdi
-    add r11, r10 ; text length + alignement
+    add r11, r10 ; text size + alignement
 	; mprotect
 	mov rax, 0xa ; syscall mprotect
 	mov rsi, r11 ; size
@@ -78,8 +78,8 @@ decrypt:
 	syscall
 
 	; aes thing
-	mov rsi, r9 ; encrypted segment offset
-	mov rdx, r10 ; encrypted segment length
+	mov rdi, r9 ; encrypted segment offset
+	mov rsi, r10 ; encrypted segment size
 	movdqu xmm0, xmm1 ; move key in xmm0
 	genkey 0x1, xmm4
 	genkey 0x2, xmm5
@@ -100,14 +100,14 @@ decrypt:
 	aesimc xmm10, xmm10
 	aesimc xmm11, xmm11
 	aesimc xmm12, xmm12
-	xor rdi, rdi
+	xor rdx, rdx
 
 begin_loop:
-	cmp rdx, rdi
+	cmp rsi, rdx
 	jle end
 
 perform:
-	movdqu xmm15, [rsi + rdi] ; move value in xmm15
+	movdqu xmm15, [rdi+rdx] ; move value in xmm15
 	pxor xmm15, xmm13
 	aesdec xmm15, xmm12
 	aesdec xmm15, xmm11
@@ -119,8 +119,8 @@ perform:
 	aesdec xmm15, xmm5
 	aesdec xmm15, xmm4
 	aesdeclast xmm15, xmm0
-	movdqu [rsi + rdi], xmm15
-	add rdi, 0x10
+	movdqu [rdi+rdx], xmm15
+	add rdx, 0x10
 	jmp begin_loop
 
 end:

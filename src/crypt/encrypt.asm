@@ -1,8 +1,8 @@
 BITS 64
 
 global encrypt
-; encrypt(char *key, char *value, size_t len)
-;		  rdi,       rsi		  rdx
+; encrypt(char *key, char *value, size_t len, char bit32)
+;		  rdi,       rsi		  rdx         rcx
 
 
 %macro  genkey 1-2 ; if count of params==1, second param = rax
@@ -41,6 +41,8 @@ encrypt:
 	genkey 0x1b, xmm12
 	genkey 0x36, xmm13
 	xor rdi, rdi
+	cmp rcx, 0x0
+	jne begin_loop_32
 begin_loop:
 	cmp rdx, rdi
 	jle end
@@ -60,6 +62,20 @@ perform:
 	movdqu [rsi + rdi], xmm15
 	add rdi, 0x10
 	jmp begin_loop
+begin_loop_32: ; 5 rounds for the 32 bit version
+	cmp rdx, rdi
+	jle end
+perform_32:
+	movdqu xmm15, [rsi + rdi] ; move value in xmm15
+	pxor xmm15, xmm0
+	aesenc xmm15, xmm4
+	aesenc xmm15, xmm5
+	aesenc xmm15, xmm6
+	aesenc xmm15, xmm7
+	aesenclast xmm15, xmm8
+	movdqu [rsi + rdi], xmm15
+	add rdi, 0x10
+	jmp begin_loop_32
 end:
 	pop rbx
 	ret

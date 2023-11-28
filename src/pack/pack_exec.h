@@ -8,6 +8,10 @@
 #include "woodpacker.h"
 #include "load_exec.h"
 
+#define ALIGN_SEG(insert, current, align) (						\
+		((insert / align) + (insert % align > current)) * align \
+)
+
 /*
  * t_cave_info description
  * off - cave offset inside executable
@@ -27,5 +31,6 @@ typedef struct	s_cave_info {
 }				t_cave_info;
 
 int			pack_exec(const t_exec_map *exec_map, const t_data_wrap *key);
+t_data_wrap	*allocate_woody(const t_exec_map *exec, const t_cave_info *cave);
 int			write_woody(const t_data_wrap *woody);
 #endif //PACK_EXEC_H
