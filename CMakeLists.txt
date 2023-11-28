@@ -13,7 +13,7 @@ set(LIBFT_DIR "libft")
 include_directories(${LIBFT_DIR})
 add_subdirectory(${LIBFT_DIR})
 
-include_directories(src src/load src/crypt src/pack src/pack/elf64 src/hash)
+include_directories(src src/load src/crypt src/pack src/pack/elf64 src/pack/elf32 src/hash)
 add_executable(${PROJECT_NAME}
         src/woodpacker.c
         src/new_data_wrap.c
@@ -30,6 +30,10 @@ add_executable(${PROJECT_NAME}
         src/pack/elf64/pack_elf64.c
         src/pack/elf64/find_cave_elf64.c
         src/pack/write_woody.c
-        )
+        src/load/validate_exec_elf32.c
+        src/pack/elf32/pack_elf32.c
+        src/pack/allocate_woody.c
+        src/pack/elf32/find_cave_elf32.c
+        src/pack/elf32/assemble_woody_elf32.c)
 
 target_link_libraries(${PROJECT_NAME} ft)
