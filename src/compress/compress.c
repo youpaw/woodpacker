@@ -1,365 +1,342 @@
+#include	<stdint.h>
+#	include	<unistd.h>
 #include	<stdio.h>
-#include	<string.h>
-
-#include    "compress.h"
-
-#ifndef SIG_TYPE
-#	define	SIG_TYPE	void (*)()
-#endif
-
-#ifndef	LSTAT
-#	define	lstat	stat
-#endif
-
-#undef	min
-#define	min(a,b)	((a>b) ? b : a)
-
-#ifndef	IBUFSIZ
-#	define	IBUFSIZ	BUFSIZ	/* Default input buffer size							*/
-#endif
-#ifndef	OBUFSIZ
-#	define	OBUFSIZ	BUFSIZ	/* Default output buffer size							*/
-#endif
-
-/* Defines for third byte of header 					*/
-#define	MAGIC_1		(char_type)'\037'/* First byte of compressed file				*/
-#define	MAGIC_2		(char_type)'\235'/* Second byte of compressed file				*/
-#define BIT_MASK	0x1f			/* Mask for 'number of compression bits'		*/
-/* Masks 0x20 and 0x40 are free.  				*/
-/* I think 0x20 should mean that there is		*/
-/* a fourth header byte (for expansion).    	*/
-#define BLOCK_MODE	0x80			/* Block compression if table is full and		*/
-/* compression rate is dropping flush tables	*/
-
-/* the next two codes should not be changed lightly, as they must not	*/
-/* lie within the contiguous general code space.						*/
-#define FIRST	257					/* first free entry 							*/
-#define	CLEAR	256					/* table clear output code 						*/
-
-#define INIT_BITS 9			/* initial number of bits/code */
-
-#	define	BITS   12
-#	define HSIZE	5003
+#include	<stdlib.h>
+#include	<sys/stat.h>
+#include <fcntl.h>
+#include	<ctype.h>
+#include	<signal.h>
+#include	<sys/types.h>
+#	include	<dirent.h>
 
 #ifndef	O_BINARY
 #	define	O_BINARY	0	/* System has no binary mode							*/
 #endif
 
-#define CHECK_GAP 10000
+#ifndef _WIN32
+
+#define _FILE_OFFSET_BITS 64
+#define _fseeki64 fseeko
+#define _ftelli64 ftello
+#define _stati64 stat
+
+#define __min(a, b) ((a)<(b)?(a):(b))
+#define __max(a, b) ((a)>(b)?(a):(b))
+
+#endif // _WIN32
 
 
-typedef long int			code_int;
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+#include <time.h>
 
-typedef long int	 		count_int;
-typedef long int			cmp_code_int;
-typedef	unsigned char	    char_type;
+#ifdef _WIN32
+#include <sys/types.h>
+#include <sys/stat.h>
+#include <sys/utime.h>
 
-#define MAXCODE(n)	(1L << (n))
+typedef int bool;
+#else
+#include <stdbool.h>
+#include <sys/fcntl.h>
 
-#define	output(b,o,c,n)	{	char_type	*p = &(b)[(o)>>3];					\
-							long		 i = ((long)(c))<<((o)&0x7);		\
-							p[0] |= (char_type)(i);							\
-							p[1] |= (char_type)(i>>8);						\
-							p[2] |= (char_type)(i>>16);						\
-							(o) += (n);										\
-						}
-#define	input(b,o,c,n,m){	char_type 		*p = &(b)[(o)>>3];				\
-							(c) = ((((long)(p[0]))|((long)(p[1])<<8)|		\
-									 ((long)(p[2])<<16))>>((o)&0x7))&(m);	\
-							(o) += (n);										\
-						}
+#endif
 
-#define reset_n_bits_for_compressor(n_bits, stcode, free_ent, extcode, maxbits) {	\
-	n_bits = INIT_BITS;								\
-	stcode = 1;									\
-	free_ent = FIRST;								\
-	extcode = MAXCODE(n_bits);							\
-	if (n_bits < maxbits)								\
-		extcode++;								\
+typedef unsigned char byte;
+typedef unsigned int uint;
+
+#define LZ4_MAGIC_NUMBER 0x184C2102
+#define BLOCK_SIZE (8<<20) // 8 MB
+#define PADDING_LITERALS 8
+
+#define WLOG 16
+#define WSIZE (1<<WLOG)
+#define WMASK (WSIZE-1)
+
+#define MIN_MATCH 4
+
+#define COMPRESS_BOUND (16+BLOCK_SIZE+(BLOCK_SIZE/255))
+
+byte buf[BLOCK_SIZE+COMPRESS_BOUND];
+
+#define HASH_LOG 18
+#define HASH_SIZE (1<<HASH_LOG)
+#define NIL (-1)
+
+#if defined(__INTEL_COMPILER) && !defined(FORCE_UNALIGNED)
+#define LOAD32(p) (*reinterpret_cast<const uint*>(&buf[p]))
+#else
+static inline uint LOAD32(int p) {
+    uint v;
+    memcpy(&v, &(buf[p]), sizeof(uint));
+    return v;
 }
+#endif
 
-#define reset_n_bits_for_decompressor(n_bits, bitmask, maxbits, maxcode, maxmaxcode) {	\
-	n_bits = INIT_BITS;								\
-	bitmask = (1<<n_bits)-1;							\
-	if (n_bits == maxbits)								\
-		maxcode = maxmaxcode;							\
-	else										\
-		maxcode = MAXCODE(n_bits)-1;						\
-}
+#define HASH32(p) ((LOAD32(p)*0x125A517D)>>(32-HASH_LOG))
 
-char_type		inbuf[IBUFSIZ+64];	/* Input buffer									*/
-char_type		outbuf[OBUFSIZ+2048];/* Output buffer								*/
+#define GET_BYTE() buf[BLOCK_SIZE+(bp++)]
+#define PUT_BYTE(c) (buf[BLOCK_SIZE+(bsize++)]=(c))
 
-static int		maxbits = BITS;
 
-long 			bytes_in;			/* Total number of byte from input				*/
-long 			bytes_out;			/* Total number of byte to output				*/
-
-count_int		htab[HSIZE];
-unsigned short	codetab[HSIZE];
-
-#define	tab_prefixof(i)			codetab[i]
-#define	tab_suffixof(i)			((char_type *)(htab))[i]
-#define	de_stack				((char_type *)&(htab[HSIZE-1]))
-#define	clear_htab()			memset(htab, -1, sizeof(htab))
-#define	clear_tab_prefixof()	memset(codetab, 0, 256);
-
-/*
-* Assumptions:
-*   When filenames are given, replaces with the compressed version
-*   (.Z suffix) only if the file decreases in size.
-*
-* Algorithm:
-*   Modified Lempel-Ziv method (LZW).  Basically finds common
-*   substrings and replaces them with a variable size code.  This is
-*   deterministic, and can be done on the fly.  Thus, the decompression
-*   procedure needs no input table, but tracks the way the table was built.
-*/
-
-static int     copy_out_data(void *out, int size, size_t *out_indx)
+size_t compress(const void *in, void *out, size_t size)
 {
-    int i = 0;
-
-    while(i < OBUFSIZ && i < size)
+    size_t out_off = 0;
+    static int head[HASH_SIZE];
+    static int nodes[WSIZE][2];
+    static struct
     {
-        ((char_type*)out)[*out_indx] = outbuf[i];
-        (*out_indx)++;
-        i++;
-    }
-    return (i);
-}
+        int bcount;
 
-static int     copy_in_data(const void *in, size_t size, size_t *in_indx)
-{
-    int i = 0;
-    int tmp = *in_indx;
+        int len;
+        int dist;
+    } path[BLOCK_SIZE];
 
-    while(i < IBUFSIZ && *in_indx < size)
+#ifdef LZ4_MAGIC_NUMBER
+    const uint magic=LZ4_MAGIC_NUMBER;
+    memcpy(out, &magic, sizeof(magic));
+    out_off += sizeof(magic);
+#endif
+
+    int n;
+    size_t in_off = 0;
+//    while ((n=fread(buf, 1, BLOCK_SIZE, fin))>0)
+
+    while (in_off < size)
     {
-        inbuf[i] = ((char_type*)in)[*in_indx];
-        (*in_indx)++;
-        i++;
-    }
-    return (i);
-}
+        // Pass 1: Find all matches
+        n = (size - in_off) < BLOCK_SIZE ? (size - in_off) : BLOCK_SIZE;
+        memcpy(buf, in + in_off, n);
+        in_off += n;
+        for (int i=0; i<HASH_SIZE; ++i)
+            head[i]=NIL;
 
-/*
- *
- * Algorithm:  use open addressing double hashing (no chaining) on the
- * prefix code / next character combination.  We do a variant of Knuth's
- * algorithm D (vol. 3, sec. 6.4) along with G. Knott's relatively-prime
- * secondary probe.  Here, the modular division first probe is gives way
- * to a faster exclusive-or manipulation.  Also do block compression with
- * an adaptive reset, whereby the code table is cleared when the compression
- * ratio decreases, but after the table fills.  The variable-length output
- * codes are re-sized at this point, and a special CLEAR code is generated
- * for the decompressor.  Late addition:  construct the table according to
- * file size for noticeable speed improvement on small files.  Please direct
- * questions about this implementation to ames!jaw.
- */
-size_t	compress(const void *in, void *out, size_t size)
-{
-    long hp;
-    int rpos;
-    long fc;
-    int outbits;
-    int rlop;
-    int rsize;
-    int stcode;
-    code_int free_ent;
-    int boff;
-    int n_bits;
-    int ratio;
-    long checkpoint;
-    code_int extcode;
-    size_t in_indx;
-    size_t  out_indx;
-
-    in_indx = 0;
-    rsize = 0;
-    out_indx = 0;
-    union
-    {
-        long			code;
-        struct
+        for (int p=0; p < n; ++p)
         {
-            char_type		c;
-            unsigned short	ent;
-        } e;
-    } fcode;
+            int best_len=0;
+            int dist;
 
-    ratio = 0;
-    checkpoint = CHECK_GAP;
-    reset_n_bits_for_compressor(n_bits, stcode, free_ent, extcode, maxbits);
-
-    memset(outbuf, 0, sizeof(outbuf));
-    bytes_out = 0; bytes_in = 0;
-    outbuf[0] = MAGIC_1;
-    outbuf[1] = MAGIC_2;
-    outbuf[2] = (char)(maxbits | BLOCK_MODE);
-    boff = outbits = (3<<3);
-    fcode.code = 0;
-
-    clear_htab();
-
-    while (rsize < size && ((rsize = copy_in_data(in, size, &in_indx)) > 0))
-    {
-        if (bytes_in == 0)
-        {
-            fcode.e.ent = inbuf[0];
-            rpos = 1;
-        }
-        else
-            rpos = 0;
-
-        rlop = 0;
-
-        do
-        {
-            if (free_ent >= extcode && fcode.e.ent < FIRST)
+            const int max_match= (n - PADDING_LITERALS) - p;
+            if (max_match>=MIN_MATCH)
             {
-                if (n_bits < maxbits)
+                int* left=&nodes[p&WMASK][1];
+                int* right=&nodes[p&WMASK][0];
+
+                int left_len=0;
+                int right_len=0;
+
+                const int wstart=__max(p-WSIZE, NIL);
+
+                const uint h=HASH32(p);
+                int s=head[h];
+                head[h]=p;
+
+                while (s>wstart)
                 {
-                    boff = outbits = (outbits-1)+((n_bits<<3)-
-                                                  ((outbits-boff-1+(n_bits<<3))%(n_bits<<3)));
-                    if (++n_bits < maxbits)
-                        extcode = MAXCODE(n_bits)+1;
-                    else
-                        extcode = MAXCODE(n_bits);
-                }
-                else
-                {
-                    extcode = MAXCODE(16)+OBUFSIZ;
-                    stcode = 0;
-                }
-            }
+                    int len=__min(left_len, right_len);
 
-            if (!stcode && bytes_in >= checkpoint && fcode.e.ent < FIRST)
-            {
-                long int rat;
-
-                checkpoint = bytes_in + CHECK_GAP;
-
-                if (bytes_in > 0x007fffff)
-                {							/* shift will overflow */
-                    rat = (bytes_out+(outbits>>3)) >> 8;
-
-                    if (rat == 0)				/* Don't divide by zero */
-                        rat = 0x7fffffff;
-                    else
-                        rat = bytes_in / rat;
-                }
-                else
-                    rat = (bytes_in << 8) / (bytes_out+(outbits>>3));	/* 8 fractional bits */
-                if (rat >= ratio)
-                    ratio = (int)rat;
-                else
-                {
-                    ratio = 0;
-                    clear_htab();
-                    output(outbuf,outbits,CLEAR,n_bits);
-                    boff = outbits = (outbits-1)+((n_bits<<3)-
-                                                  ((outbits-boff-1+(n_bits<<3))%(n_bits<<3)));
-                    reset_n_bits_for_compressor(n_bits, stcode, free_ent, extcode, maxbits);
-                }
-            }
-
-            if (outbits >= (OBUFSIZ<<3))
-            {
-                if (copy_out_data(out, OBUFSIZ, &out_indx) != OBUFSIZ)
-                    return (1);
-
-                outbits -= (OBUFSIZ<<3);
-                boff = -(((OBUFSIZ<<3)-boff)%(n_bits<<3));
-                bytes_out += OBUFSIZ;
-
-                memcpy(outbuf, outbuf+OBUFSIZ, (outbits>>3)+1);
-                memset(outbuf+(outbits>>3)+1, '\0', OBUFSIZ);
-            }
-
-            {
-                int i;
-
-                i = rsize-rlop;
-
-                if ((code_int)i > extcode-free_ent)	i = (int)(extcode-free_ent);
-                if (i > ((sizeof(outbuf) - 32)*8 - outbits)/n_bits)
-                    i = ((sizeof(outbuf) - 32)*8 - outbits)/n_bits;
-
-                if (!stcode && (long)i > checkpoint-bytes_in)
-                    i = (int)(checkpoint-bytes_in);
-
-                rlop += i;
-                bytes_in += i;
-            }
-
-            goto next;
-            hfound:			fcode.e.ent = codetab[hp];
-            next:  			if (rpos >= rlop)
-            goto endlop;
-            next2: 			fcode.e.c = inbuf[rpos++];
-            {
-                code_int i;
-                fc = fcode.code;
-                hp = (((long)(fcode.e.c)) << (BITS-8)) ^ (long)(fcode.e.ent);
-
-                if ((i = htab[hp]) == fc)
-                    goto hfound;
-
-                if (i != -1)
-                {
-                    long disp;
-
-                    disp = (HSIZE - hp)-1;	/* secondary hash (after G. Knott) */
-
-                    do
+                    if (buf[s+len]==buf[p+len])
                     {
-                        if ((hp -= disp) < 0)	hp += HSIZE;
+                        while (++len<max_match && buf[s+len]==buf[p+len]);
 
-                        if ((i = htab[hp]) == fc)
-                            goto hfound;
+                        if (len>best_len)
+                        {
+                            best_len=len;
+                            dist=p-s;
+
+                            if (len==max_match)
+                                break;
+                        }
                     }
-                    while (i != -1);
+
+                    if (buf[s+len]<buf[p+len])
+                    {
+                        *right=s;
+                        right=&nodes[s&WMASK][1];
+                        s=*right;
+                        right_len=len;
+                    }
+                    else
+                    {
+                        *left=s;
+                        left=&nodes[s&WMASK][0];
+                        s=*left;
+                        left_len=len;
+                    }
                 }
+
+                *left=NIL;
+                *right=NIL;
             }
 
-            output(outbuf,outbits,fcode.e.ent,n_bits);
-
-            {
-                long fc = fcode.code;
-                fcode.e.ent = fcode.e.c;
-
-                if (stcode)
-                {
-                    codetab[hp] = (unsigned short)free_ent++;
-                    htab[hp] = fc;
-                }
-            }
-
-            goto next;
-
-            endlop:			if (fcode.e.ent >= FIRST && rpos < rsize)
-            goto next2;
-
-            if (rpos > rlop)
-            {
-                bytes_in += rpos-rlop;
-                rlop = rpos;
-            }
+            path[p].len=best_len;
+            path[p].dist=dist;
         }
-        while (rlop < rsize);
+
+        // Pass 2: Build the shortest path
+
+        path[n].bcount=0;
+
+        int state=15;
+
+        for (int p = n - 1; p > 0; --p)
+        {
+            int c0=path[p+1].bcount+1;
+
+            if (!--state)
+            {
+                state=255;
+                ++c0;
+            }
+
+            if (path[p].len>=MIN_MATCH)
+            {
+                path[p].bcount=1<<30;
+
+                for (int i=path[p].len; i>=MIN_MATCH; --i)
+                {
+                    int c1=path[p+i].bcount+3;
+
+                    int len=i-MIN_MATCH;
+                    if (len>=15)
+                    {
+                        len-=15;
+                        for (; len>=255; len-=255)
+                            ++c1;
+                        ++c1;
+                    }
+
+                    if (c1<path[p].bcount)
+                    {
+                        path[p].bcount=c1;
+                        path[p].len=i;
+                    }
+                }
+
+                if (c0<path[p].bcount)
+                {
+                    path[p].bcount=c0;
+                    path[p].len=0;
+                }
+                else
+                    state=15;
+            }
+            else
+                path[p].bcount=c0;
+        }
+
+        // Pass 3: Output the codes
+
+        int bsize=0;
+        int pp=0;
+
+        int p=0;
+        while (p < n)
+        {
+            if (path[p].len>=MIN_MATCH)
+            {
+                int len=path[p].len-MIN_MATCH;
+                const int adder=__min(len, 15);
+
+                if (pp<p)
+                {
+                    int run=p-pp;
+                    if (run>=15)
+                    {
+                        PUT_BYTE((15<<4)+adder);
+
+                        run-=15;
+                        for (; run>=255; run-=255)
+                            PUT_BYTE(255);
+                        PUT_BYTE(run);
+                    }
+                    else
+                        PUT_BYTE((run<<4)+adder);
+
+                    while (pp<p)
+                        PUT_BYTE(buf[pp++]);
+                }
+                else
+                    PUT_BYTE(adder);
+
+                PUT_BYTE(path[p].dist);
+                PUT_BYTE(path[p].dist>>8);
+
+                if (len>=15)
+                {
+                    len-=15;
+                    for (; len>=255; len-=255)
+                        PUT_BYTE(255);
+                    PUT_BYTE(len);
+                }
+
+                p+=path[p].len;
+
+                pp=p;
+            }
+            else
+                ++p;
+        }
+
+        if (pp<p)
+        {
+            int run=p-pp;
+            if (run>=15)
+            {
+                PUT_BYTE(15<<4);
+
+                run-=15;
+                for (; run>=255; run-=255)
+                    PUT_BYTE(255);
+                PUT_BYTE(run);
+            }
+            else
+                PUT_BYTE(run<<4);
+
+            while (pp<p)
+                PUT_BYTE(buf[pp++]);
+        }
+
+        memcpy(out + out_off, &bsize, sizeof(bsize));
+        out_off += sizeof(bsize);
+        memcpy(out + out_off, &buf[BLOCK_SIZE], bsize);
+        out_off += bsize;
+//        fprintf(stderr, "%3d%%\r", (int)((_ftelli64(stfout)*100)/flen));
     }
+    return (out_off);
+}
 
-    if (rsize < 0)
-        return(1);
+#include <sys/mman.h>
+#include <fcntl.h>
+#include <errno.h>
+#include <unistd.h>
+#include <stdio.h>
 
-    if (bytes_in > 0)
-    output(outbuf,outbits,fcode.e.ent,n_bits);
-
-    if (copy_out_data(out, (outbits+7)>>3, &out_indx) != (outbits+7)>>3)
-        return (1);
-
-    bytes_out += (outbits+7)>>3;
-
-    return (out_indx);
+int main(int argc, char** argv)
+{
+	int fd = open("ssh", O_RDONLY);
+	if (errno)
+	{
+		perror("Cannot open specified executable");
+		return (errno);
+	}
+	size_t size = lseek(fd, 0, SEEK_END);
+	lseek(fd, 0, SEEK_SET);
+	void *map = mmap(NULL, size, PROT_READ, MAP_PRIVATE, fd, 0);
+	close(fd);
+	void *out = malloc(size);
+    size_t comp = compress(map, out, size);
+	fd = open("test.cmp", O_WRONLY | O_CREAT | O_TRUNC,
+			  S_IRWXU | S_IRWXG | S_IROTH | S_IXOTH);
+	if (fd == -1)
+	{
+		perror("Cannot create woody binary");
+		return (-1);
+	}
+	write(fd, out, comp);
+	close(fd);
+	free(out);
+	munmap(map, size);
+    return 0;
 }
