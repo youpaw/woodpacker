@@ -19,7 +19,7 @@ t_data_wrap *pack_elf32(const t_exec_map *exec, const t_data_wrap *key)
 	woody = allocate_woody(exec, cave);
 	exec_seg = woody->data + cave->ph_off;
 	encrypt(key->data, woody->data + exec_seg->p_offset,
-			exec_seg->p_filesz + cave->seg_pad, 1);
+			exec_seg->p_filesz + cave->enc_pad, 1);
 	assemble_woody_elf32(woody, cave, key);
 	free(cave);
 	return (woody);

@@ -45,9 +45,9 @@ t_cave_info	*find_cave_elf32(const void *bin)
 	cave->ph_off = (void *) txt_seg - bin;
 	cave->ph_idx = txt_seg_idx;
 	cave->size = txt_seg->p_align - txt_seg->p_filesz % txt_seg->p_align;
-	cave->seg_pad = txt_seg->p_filesz % ENCRYPT_ALIGN ?
+	cave->enc_pad = txt_seg->p_filesz % ENCRYPT_ALIGN ?
 					ENCRYPT_ALIGN - (txt_seg->p_filesz % ENCRYPT_ALIGN) : 0;
-	cave->extend = ALIGN_SEG(cave->seg_pad + PAYLOAD_SIZE_ELF32,
+	cave->extend = ALIGN_SEG(cave->enc_pad + PAYLOAD_SIZE_ELF32,
 							 cave->size, txt_seg->p_align);
 	return (cave);
 }

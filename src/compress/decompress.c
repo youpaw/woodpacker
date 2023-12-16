@@ -7,30 +7,38 @@ Written and placed in the public domain by Ilya Muravyov
 */
 
 #include <inttypes.h>
-#include <memory.h>
+#include <sys/mman.h>
 #include <stdlib.h>
-
-
+#include <stdint.h>
 #define LZ4_MAGIC_NUMBER 0x184C2102
 #define BLOCK_SIZE (8<<20) // 8 MB
 
 #define COMPRESS_BOUND (16+BLOCK_SIZE+(BLOCK_SIZE/255))
 
-unsigned char buf[BLOCK_SIZE+COMPRESS_BOUND];
-
 #define GET_BYTE() buf[BLOCK_SIZE+(bp++)]
 
-void	*decompress(const void *in, size_t comp, size_t orig)
+static void	*ft_memcpy(void *dst, const void *src, size_t n)
+{
+	char *d = dst;
+	const char *s = src;
+
+	while (n--)
+		*d++ = *s++;
+	return dst;
+}
+
+size_t decompress(const void *in, size_t comp, void *out, size_t orig)
 {
 	__label__ err;
+	unsigned char *buf = mmap(0, BLOCK_SIZE+COMPRESS_BOUND, PROT_READ|PROT_WRITE, MAP_PRIVATE|MAP_ANONYMOUS, -1, 0);
 	size_t in_off = 0;
+	
 	uint32_t magic = *(uint32_t *)in;
 	in_off += sizeof(uint32_t);
 
 	if (magic != LZ4_MAGIC_NUMBER)
-		return (NULL);
+		goto err;
 
-	void *out = malloc(orig);
 	size_t out_off = 0;
 	while (in_off < comp)
 	{
@@ -38,9 +46,9 @@ void	*decompress(const void *in, size_t comp, size_t orig)
 		in_off += sizeof(int);
 
 		if (bsize < 0 || bsize > COMPRESS_BOUND)
-			goto err;
+			goto err;;
 
-		memcpy(&buf[BLOCK_SIZE], in + in_off, bsize);
+		ft_memcpy(&buf[BLOCK_SIZE], in + in_off, bsize);
 		in_off += bsize;
 
 		int p = 0;
@@ -98,22 +106,17 @@ void	*decompress(const void *in, size_t comp, size_t orig)
 		if (bp!=bsize)
 			goto err;
 
-		memcpy(&out[out_off], buf, p);
+		ft_memcpy(out + out_off, buf, p);
 		out_off += p;
 	}
 
-	return (out);
+	return (out_off);
 	err:
-	free(out);
-	return (NULL);
+	munmap(buf, BLOCK_SIZE+COMPRESS_BOUND);
+	return (0);
 }
 
-
-//
-// Created by youpaw on 7/18/22.
-//
-
-#include <sys/mman.h>
+/*
 #include <fcntl.h>
 #include <errno.h>
 #include <unistd.h>
@@ -132,7 +135,8 @@ int main(int argc, char** argv)
 	void *map = mmap(NULL, size, PROT_READ, MAP_PRIVATE, fd, 0);
 	close(fd);
 	size_t orig = 846888;
-	void *data = decompress(map, size, orig);
+	void *data = malloc(orig);
+	decompress(map, size, data, orig);
 	fd = open("test", O_WRONLY | O_CREAT | O_TRUNC,
 			  S_IRWXU | S_IRWXG | S_IROTH | S_IXOTH);
 	if (fd == -1)
@@ -146,3 +150,4 @@ int main(int argc, char** argv)
 	munmap(map, size);
 	return 0;
 }
+*/

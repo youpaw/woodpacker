@@ -7,6 +7,6 @@
 #include <unistd.h>
 
 size_t	compress(const void *in, void *out, size_t size);
-void	*decompress(const void *in, size_t comp, size_t orig);
+//void	*decompress(const void *in, size_t comp, size_t orig);
 
 #endif //COMPRESS_H

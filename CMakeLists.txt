@@ -21,7 +21,6 @@ add_executable(${PROJECT_NAME}
         src/crypt/encrypt.asm
         src/crypt/generate_key.c
         src/compress/compress.c
-#        src/compress/decompress.c
         src/load/load_exec.c
         src/load/mmap_exec.c
         src/load/munmap_exec.c
@@ -37,6 +36,6 @@ add_executable(${PROJECT_NAME}
         src/pack/elf64/pack_elf64.c
         src/pack/elf64/find_cave_elf64.c
         src/pack/elf64/assemble_woody_elf64.c
-        )
+        src/pack/del_cave_info.c)
 
 target_link_libraries(${PROJECT_NAME} ft)

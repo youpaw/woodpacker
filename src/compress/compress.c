@@ -1,50 +1,10 @@
-#include	<stdint.h>
-#	include	<unistd.h>
-#include	<stdio.h>
-#include	<stdlib.h>
-#include	<sys/stat.h>
-#include <fcntl.h>
-#include	<ctype.h>
-#include	<signal.h>
-#include	<sys/types.h>
-#	include	<dirent.h>
-
-#ifndef	O_BINARY
-#	define	O_BINARY	0	/* System has no binary mode							*/
-#endif
-
-#ifndef _WIN32
-
-#define _FILE_OFFSET_BITS 64
-#define _fseeki64 fseeko
-#define _ftelli64 ftello
-#define _stati64 stat
-
-#define __min(a, b) ((a)<(b)?(a):(b))
-#define __max(a, b) ((a)>(b)?(a):(b))
-
-#endif // _WIN32
-
-
-#include <stdio.h>
-#include <stdlib.h>
-#include <string.h>
-#include <time.h>
-
-#ifdef _WIN32
-#include <sys/types.h>
-#include <sys/stat.h>
-#include <sys/utime.h>
-
-typedef int bool;
-#else
-#include <stdbool.h>
-#include <sys/fcntl.h>
-
-#endif
+#include <memory.h>
 
 typedef unsigned char byte;
 typedef unsigned int uint;
+
+#define MIN(a, b) ((a)<(b)?(a):(b))
+#define MAX(a, b) ((a)>(b)?(a):(b))
 
 #define LZ4_MAGIC_NUMBER 0x184C2102
 #define BLOCK_SIZE (8<<20) // 8 MB
@@ -76,7 +36,6 @@ static inline uint LOAD32(int p) {
 
 #define HASH32(p) ((LOAD32(p)*0x125A517D)>>(32-HASH_LOG))
 
-#define GET_BYTE() buf[BLOCK_SIZE+(bp++)]
 #define PUT_BYTE(c) (buf[BLOCK_SIZE+(bsize++)]=(c))
 
 
@@ -101,7 +60,6 @@ size_t compress(const void *in, void *out, size_t size)
 
     int n;
     size_t in_off = 0;
-//    while ((n=fread(buf, 1, BLOCK_SIZE, fin))>0)
 
     while (in_off < size)
     {
@@ -126,7 +84,7 @@ size_t compress(const void *in, void *out, size_t size)
                 int left_len=0;
                 int right_len=0;
 
-                const int wstart=__max(p-WSIZE, NIL);
+                const int wstart=MAX(p - WSIZE, NIL);
 
                 const uint h=HASH32(p);
                 int s=head[h];
@@ -134,7 +92,7 @@ size_t compress(const void *in, void *out, size_t size)
 
                 while (s>wstart)
                 {
-                    int len=__min(left_len, right_len);
+                    int len=MIN(left_len, right_len);
 
                     if (buf[s+len]==buf[p+len])
                     {
@@ -237,7 +195,7 @@ size_t compress(const void *in, void *out, size_t size)
             if (path[p].len>=MIN_MATCH)
             {
                 int len=path[p].len-MIN_MATCH;
-                const int adder=__min(len, 15);
+                const int adder=MIN(len, 15);
 
                 if (pp<p)
                 {
@@ -302,16 +260,16 @@ size_t compress(const void *in, void *out, size_t size)
         out_off += sizeof(bsize);
         memcpy(out + out_off, &buf[BLOCK_SIZE], bsize);
         out_off += bsize;
-//        fprintf(stderr, "%3d%%\r", (int)((_ftelli64(stfout)*100)/flen));
     }
     return (out_off);
 }
-
+/*
 #include <sys/mman.h>
 #include <fcntl.h>
 #include <errno.h>
 #include <unistd.h>
 #include <stdio.h>
+#include <stdlib.h>
 
 int main(int argc, char** argv)
 {
@@ -340,3 +298,4 @@ int main(int argc, char** argv)
 	munmap(map, size);
     return 0;
 }
+*/
