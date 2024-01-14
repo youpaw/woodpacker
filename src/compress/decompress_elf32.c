@@ -6,9 +6,7 @@ Written and placed in the public domain by Ilya Muravyov
 
 */
 
-#include <inttypes.h>
 #include <sys/mman.h>
-#include <stdlib.h>
 #include <stdint.h>
 #define LZ4_MAGIC_NUMBER 0x184C2102
 #define BLOCK_SIZE (8<<20) // 8 MB
@@ -17,7 +15,7 @@ Written and placed in the public domain by Ilya Muravyov
 
 #define GET_BYTE() buf[BLOCK_SIZE+(bp++)]
 
-static void	*ft_memcpy(void *dst, const void *src, size_t n)
+static void	*ft_memcpy(void *dst, const void *src, uint32_t n)
 {
 	char *d = dst;
 	const char *s = src;
@@ -27,11 +25,10 @@ static void	*ft_memcpy(void *dst, const void *src, size_t n)
 	return dst;
 }
 
-size_t decompress(const void *in, size_t comp, void *out, size_t orig)
+uint32_t decompress(const void *in, uint32_t comp, void *out, unsigned char *buf)
 {
 	__label__ err;
-	unsigned char *buf = mmap(0, BLOCK_SIZE+COMPRESS_BOUND, PROT_READ|PROT_WRITE, MAP_PRIVATE|MAP_ANONYMOUS, -1, 0);
-	size_t in_off = 0;
+	uint32_t in_off = 0;
 	
 	uint32_t magic = *(uint32_t *)in;
 	in_off += sizeof(uint32_t);
@@ -39,7 +36,7 @@ size_t decompress(const void *in, size_t comp, void *out, size_t orig)
 	if (magic != LZ4_MAGIC_NUMBER)
 		goto err;
 
-	size_t out_off = 0;
+	uint32_t out_off = 0;
 	while (in_off < comp)
 	{
 		int bsize = *(int *)(in + in_off);
@@ -112,7 +109,6 @@ size_t decompress(const void *in, size_t comp, void *out, size_t orig)
 
 	return (out_off);
 	err:
-	munmap(buf, BLOCK_SIZE+COMPRESS_BOUND);
 	return (0);
 }
 
@@ -121,6 +117,7 @@ size_t decompress(const void *in, size_t comp, void *out, size_t orig)
 #include <errno.h>
 #include <unistd.h>
 #include <stdio.h>
+#include <stdlib.h>
 
 int main(int argc, char** argv)
 {
@@ -130,13 +127,14 @@ int main(int argc, char** argv)
 		perror("Cannot open specified executable");
 		return (errno);
 	}
-	size_t size = lseek(fd, 0, SEEK_END);
+	uint32_t size = lseek(fd, 0, SEEK_END);
 	lseek(fd, 0, SEEK_SET);
 	void *map = mmap(NULL, size, PROT_READ, MAP_PRIVATE, fd, 0);
 	close(fd);
-	size_t orig = 846888;
+	uint32_t orig = 846888;
 	void *data = malloc(orig);
-	decompress(map, size, data, orig);
+	unsigned char *buf = mmap(0, BLOCK_SIZE+COMPRESS_BOUND, PROT_READ|PROT_WRITE, MAP_PRIVATE|MAP_ANONYMOUS, -1, 0);
+	decompress(map, size, data, buf);
 	fd = open("test", O_WRONLY | O_CREAT | O_TRUNC,
 			  S_IRWXU | S_IRWXG | S_IROTH | S_IXOTH);
 	if (fd == -1)
@@ -148,6 +146,7 @@ int main(int argc, char** argv)
 	close(fd);
 	free(data);
 	munmap(map, size);
+	munmap(buf, BLOCK_SIZE+COMPRESS_BOUND);
 	return 0;
 }
 */

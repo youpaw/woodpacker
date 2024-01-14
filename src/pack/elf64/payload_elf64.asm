@@ -19,7 +19,6 @@ start:
 	push r14
 	push r15
 	call print_woody
-	; sub rsp, 0x40
 	mov r13, 0xdeadbeefdeadbeef ; original text size
 	mov r14, 0xdeadbeefdeadbeef ; compressed size
 	mov r15, 0xdeadbeefdeadbeef ; encrypted size (with encryption padding)
@@ -45,13 +44,13 @@ start:
 	mov rdi, r12
 	mov rsi, r15
     call decrypt
-	mov     r9, 0
-	mov     r8, -1
-	mov     r10, 34
-	mov     rdx, 3
-	mov     rsi, r13
-	mov     rdi, 0
-	mov		rax, 9 ; syscall mmap to allocate decompression buffer
+	mov r9, 0
+	mov r8, -1
+	mov r10, 34
+	mov rdx, 3
+	mov rsi, r13
+	mov rdi, 0
+	mov rax, 9 ; syscall mmap to allocate memory for decompressed data
 	syscall
 	push rax ; backup mapped data
 	push r13 ; backup mapped data size
@@ -156,8 +155,8 @@ decompress:
         mov     r15, rsi                                ; 0015 _ 49: 89. F7
         mov     qword [rsp+10H], rsi                    ; 0018 _ 48: 89. 74 24, 10
         mov     qword [rsp+18H], rdx                    ; 001D _ 48: 89. 54 24, 18
-        mov     r9, 0                                  ; 0022 _ 41: B9, 00000000
-        mov     r8, -1                         ; 0028 _ 41: B8, FFFFFFFF
+        mov     r9, 0                                   ; 0022 _ 41: B9, 00000000
+        mov     r8, -1                                  ; 0028 _ 41: B8, FFFFFFFF
         mov     r10, 34                                 ; 002E _ B9, 00000022
         mov     rdx, 3                                  ; 0033 _ BA, 00000003
         mov     rsi, 16810128                           ; 0038 _ BE, 01008090
