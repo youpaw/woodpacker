@@ -1,12 +1,3 @@
-/*
-
-LZ4X - An optimized LZ4 compressor
-
-Written and placed in the public domain by Ilya Muravyov
-
-*/
-
-#include <sys/mman.h>
 #include <stdint.h>
 #define LZ4_MAGIC_NUMBER 0x184C2102
 #define BLOCK_SIZE (8<<20) // 8 MB
@@ -111,42 +102,3 @@ uint32_t decompress(const void *in, uint32_t comp, void *out, unsigned char *buf
 	err:
 	return (0);
 }
-
-/*
-#include <fcntl.h>
-#include <errno.h>
-#include <unistd.h>
-#include <stdio.h>
-#include <stdlib.h>
-
-int main(int argc, char** argv)
-{
-	int fd = open("test.cmp", O_RDONLY);
-	if (errno)
-	{
-		perror("Cannot open specified executable");
-		return (errno);
-	}
-	uint32_t size = lseek(fd, 0, SEEK_END);
-	lseek(fd, 0, SEEK_SET);
-	void *map = mmap(NULL, size, PROT_READ, MAP_PRIVATE, fd, 0);
-	close(fd);
-	uint32_t orig = 846888;
-	void *data = malloc(orig);
-	unsigned char *buf = mmap(0, BLOCK_SIZE+COMPRESS_BOUND, PROT_READ|PROT_WRITE, MAP_PRIVATE|MAP_ANONYMOUS, -1, 0);
-	decompress(map, size, data, buf);
-	fd = open("test", O_WRONLY | O_CREAT | O_TRUNC,
-			  S_IRWXU | S_IRWXG | S_IROTH | S_IXOTH);
-	if (fd == -1)
-	{
-		perror("Cannot create woody binary");
-		return (-1);
-	}
-	write(fd, data, orig);
-	close(fd);
-	free(data);
-	munmap(map, size);
-	munmap(buf, BLOCK_SIZE+COMPRESS_BOUND);
-	return 0;
-}
-*/
