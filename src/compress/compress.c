@@ -264,39 +264,3 @@ size_t compress(const void *in, void *out, size_t size)
     return (out_off);
 }
 
-/*
-#include <sys/mman.h>
-#include <fcntl.h>
-#include <errno.h>
-#include <unistd.h>
-#include <stdio.h>
-#include <stdlib.h>
-
-int main(int argc, char** argv)
-{
-	int fd = open("ssh", O_RDONLY);
-	if (errno)
-	{
-		perror("Cannot open specified executable");
-		return (errno);
-	}
-	size_t size = lseek(fd, 0, SEEK_END);
-	lseek(fd, 0, SEEK_SET);
-	void *map = mmap(NULL, size, PROT_READ, MAP_PRIVATE, fd, 0);
-	close(fd);
-	void *out = malloc(size);
-    size_t comp = compress(map, out, size);
-	fd = open("test.cmp", O_WRONLY | O_CREAT | O_TRUNC,
-			  S_IRWXU | S_IRWXG | S_IROTH | S_IXOTH);
-	if (fd == -1)
-	{
-		perror("Cannot create woody binary");
-		return (-1);
-	}
-	write(fd, out, comp);
-	close(fd);
-	free(out);
-	munmap(map, size);
-    return 0;
-}
-*/
