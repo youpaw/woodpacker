@@ -34,9 +34,9 @@ int main(int argc, const char **argv)
 	if (!exec)
 		exit(errno);
 	key = generate_key(argv[2]);
-	print_key(key);
 	if (pack_exec(exec, key))
 		exit(errno);
+	print_key(key);
 	munmap_exec(&exec);
 	del_data_wrap(&key);
     return (0);

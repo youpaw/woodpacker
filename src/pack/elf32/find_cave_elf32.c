@@ -20,14 +20,20 @@ static Elf32_Phdr *find_text_segment(int *txt_idx, const Elf32_Ehdr *ehdr)
 		seg = (void *) ehdr + ehdr->e_phoff + ehdr->e_phentsize * idx;
 		if (seg->p_type == PT_LOAD && (seg->p_flags & PF_X))
 		{
+			if (seg->p_offset < ehdr->e_phoff + \
+				ehdr->e_phentsize * ehdr->e_phnum)
+				break;
 			*txt_idx = idx;
 			return (seg);
 		}
 		idx++;
 	}
 	errno = EINVAL;
-	perror("Cannot find executable segment header "
-		   "in the provided elf32 executable");
+	if (idx == ehdr->e_phnum)
+		perror("Cannot find executable segment header"
+			   "in the provided elf32 executable");
+	else
+		perror("Executable segment header is invalid");
 	*txt_idx = -1;
 	return (NULL);
 }

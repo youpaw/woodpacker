@@ -3,9 +3,52 @@
 //
 #include "string/ft_str.h"
 #include <elf.h>
-#include <unistd.h>
 #include <stdio.h>
 #include <errno.h>
+
+static int validate_segments(const Elf32_Ehdr *ehdr, size_t size)
+{
+	Elf32_Phdr	*seg;
+	int			idx;
+
+	if ((ehdr->e_phoff + ehdr->e_phentsize * ehdr->e_phnum) > size)
+		goto inval_err;
+	idx = 0;
+	while (idx != ehdr->e_phnum)
+	{
+		seg = (void *) ehdr + ehdr->e_phoff + ehdr->e_phentsize * idx;
+		if ((seg->p_offset + seg->p_filesz) > size)
+			goto inval_err;
+		idx++;
+	}
+	return (0);
+	inval_err:
+	errno = EINVAL;
+	perror("Provided file is invalid");
+	return (errno);
+}
+
+static int validate_sections(const Elf32_Ehdr *ehdr, size_t size)
+{
+	Elf32_Shdr	*sect;
+	size_t		cnt;
+
+	if ((ehdr->e_shoff + ehdr->e_shentsize * ehdr->e_shnum) > size)
+		goto inval_err;
+	cnt = 0;
+	while (cnt != ehdr->e_shnum)
+	{
+		sect = (void *) ehdr + ehdr->e_shoff + ehdr->e_shentsize * cnt;
+		if ((sect->sh_offset + sect->sh_size) > size)
+			goto inval_err;
+		cnt++;
+	}
+	return (0);
+	inval_err:
+	errno = EINVAL;
+	perror("Provided file is invalid");
+	return (errno);
+}
 
 int validate_exec_elf32(const void *exec_map, size_t size)
 {
@@ -28,5 +71,6 @@ int validate_exec_elf32(const void *exec_map, size_t size)
 		errno = EINVAL;
 		perror("Unsupported architecture");
 	}
+	validate_segments(exec_map, size) || validate_sections(exec_map, size);
 	return (errno);
 }
