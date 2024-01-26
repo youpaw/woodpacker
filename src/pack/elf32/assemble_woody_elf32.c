@@ -31,7 +31,8 @@ static void inject_payload(void *bin, t_cave_info *cave, Elf32_Phdr	*seg,
 	ft_memcpy(inject + LOAD_ADDR_OFF_ELF32, &tmp, sizeof(uint32_t));
 	inject += PAYLOAD_SIZE_ELF32 + cave->ld_pad;
 	ft_memcpy(inject, LOAD_ELF32, LOAD_SIZE_ELF32);
-	tmp = ehdr->e_entry - ((inject - bin) + JMP_ADDR_OFF_ELF32) - 4;
+	tmp = ((bin + cave->seg_off) - (inject + JMP_ADDR_OFF_ELF32)) + \
+			(ehdr->e_entry - seg->p_vaddr) - 4;
 	ft_memcpy(inject + JMP_ADDR_OFF_ELF32, &tmp, sizeof(uint32_t));
 	ehdr->e_entry = seg->p_vaddr + cave->size_lz4 + cave->enc_pad;
 	ehdr->e_shoff += cave->extend;
